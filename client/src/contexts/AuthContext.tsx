@@ -26,13 +26,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkAuth = async () => {
     try {
-      const response = await fetch('/api/auth/check');
+      const response = await fetch('/api/auth/check', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
       if (response.ok) {
         const userData = await response.json();
         setUser(userData.user);
+      } else {
+        setUser(null);
       }
     } catch (error) {
       console.error('Auth check failed:', error);
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -42,7 +51,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ email, password }),
       });
 
@@ -50,8 +62,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const userData = await response.json();
         setUser(userData.user);
         return true;
+      } else {
+        const errorData = await response.json();
+        console.error('Login failed:', errorData.error);
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Login failed:', error);
       return false;
@@ -60,10 +75,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      setUser(null);
+      await fetch('/api/auth/logout', { 
+        method: 'POST',
+        credentials: 'include',
+      });
     } catch (error) {
       console.error('Logout failed:', error);
+    } finally {
+      setUser(null);
     }
   };
 
@@ -71,7 +90,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await fetch('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         body: JSON.stringify({ username, email, password }),
       });
 
@@ -79,8 +101,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const userData = await response.json();
         setUser(userData.user);
         return true;
+      } else {
+        const errorData = await response.json();
+        console.error('Registration failed:', errorData.error);
+        return false;
       }
-      return false;
     } catch (error) {
       console.error('Registration failed:', error);
       return false;

@@ -23,16 +23,15 @@ class Database {
                     PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
                     PDO::ATTR_EMULATE_PREPARES => false
                 ]);
-                echo "MySQL connection established\n";
             } catch (PDOException $e) {
-                die("MySQL Connection failed: " . $e->getMessage());
+                error_log("MySQL Connection failed: " . $e->getMessage());
+                die("Database connection failed");
             }
         } else {
             // SQLite setup
             $dataDir = getenv('DATA_DIRECTORY') ?: dirname(__DIR__, 2) . '/data';
             if (!is_dir($dataDir)) {
                 mkdir($dataDir, 0755, true);
-                echo "Created data directory: $dataDir\n";
             }
             
             $dbPath = $dataDir . '/database.sqlite';
@@ -49,10 +48,9 @@ class Database {
                 // Create tables if they don't exist
                 $this->createTables();
                 
-                echo "SQLite connection established: $dbPath\n";
-                
             } catch (PDOException $e) {
-                die("SQLite Connection failed: " . $e->getMessage());
+                error_log("SQLite Connection failed: " . $e->getMessage());
+                die("Database connection failed");
             }
         }
     }
@@ -140,7 +138,6 @@ class Database {
         ";
         
         $this->connection->exec($sql);
-        echo "Database tables created/verified\n";
     }
 }
 ?>

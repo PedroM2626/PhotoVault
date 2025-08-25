@@ -1,6 +1,13 @@
 <?php
-// Start session
+// Start session with proper configuration
 if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 24 * 60 * 60, // 24 hours
+        'path' => '/',
+        'secure' => false, // Set to true in production with HTTPS
+        'httponly' => true,
+        'samesite' => 'Lax'
+    ]);
     session_start();
 }
 
@@ -11,24 +18,27 @@ ini_set('display_errors', 1);
 // Set timezone
 date_default_timezone_set('UTC');
 
-// CORS headers
-header('Access-Control-Allow-Origin: http://localhost:3000');
-header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
-header('Access-Control-Allow-Credentials: true');
-
-// Handle preflight OPTIONS requests
-if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
-    exit();
+// Don't set headers if already sent
+if (!headers_sent()) {
+    // CORS headers for development
+    header('Access-Control-Allow-Origin: http://localhost:3000');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+    header('Access-Control-Allow-Credentials: true');
+    
+    // Handle preflight OPTIONS requests
+    if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+        http_response_code(200);
+        exit();
+    }
+    
+    // Set JSON content type for API responses only
+    if (strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
+        header('Content-Type: application/json; charset=utf-8');
+    }
 }
 
-// Set JSON content type for API responses
-if (strpos($_SERVER['REQUEST_URI'], '/api/') !== false) {
-    header('Content-Type: application/json');
-}
-
-// Include autoloader or dependencies
+// Include dependencies
 require_once __DIR__ . '/database.php';
 require_once __DIR__ . '/../models/User.php';
 require_once __DIR__ . '/../models/Album.php';
@@ -49,9 +59,6 @@ $mediumDir = $uploadsDir . '/medium';
 foreach ([$dataDir, $uploadsDir, $thumbsDir, $mediumDir] as $dir) {
     if (!is_dir($dir)) {
         mkdir($dir, 0755, true);
-        error_log("Created directory: $dir");
     }
 }
-
-echo "PhotoVault PHP Backend initialized successfully\n";
 ?>

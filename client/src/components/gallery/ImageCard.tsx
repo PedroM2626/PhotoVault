@@ -20,17 +20,27 @@ interface ImageCardProps {
 
 export const ImageCard = ({ image }: ImageCardProps) => {
   const [isFavorite, setIsFavorite] = React.useState(image.is_favorite);
+  const [isToggling, setIsToggling] = React.useState(false);
 
-  const handleFavoriteToggle = async () => {
+  const handleFavoriteToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (isToggling) return;
+    
+    setIsToggling(true);
     try {
       const response = await fetch(`/api/images/${image.id}/favorite`, {
         method: 'POST',
+        credentials: 'include',
       });
       if (response.ok) {
-        setIsFavorite(!isFavorite);
+        const data = await response.json();
+        setIsFavorite(data.is_favorite);
       }
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -48,27 +58,29 @@ export const ImageCard = ({ image }: ImageCardProps) => {
             alt={image.title}
             className="w-full h-48 object-cover cursor-pointer"
             onClick={handleImageClick}
+            loading="lazy"
           />
           <div className="absolute top-2 right-2">
             <Button
               size="sm"
               variant={isFavorite ? "default" : "outline"}
               onClick={handleFavoriteToggle}
-              className="w-8 h-8 p-0"
+              disabled={isToggling}
+              className="w-8 h-8 p-0 bg-white/90 hover:bg-white"
             >
-              <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current' : ''}`} />
+              <Heart className={`w-4 h-4 ${isFavorite ? 'fill-current text-red-500' : ''}`} />
             </Button>
           </div>
         </div>
         <div className="p-3">
-          <h3 className="font-medium truncate">{image.title}</h3>
+          <h3 className="font-medium truncate" title={image.title}>{image.title}</h3>
           <div className="flex items-center justify-between mt-2 text-sm text-gray-500">
             <div className="flex items-center">
               <Eye className="w-4 h-4 mr-1" />
               {image.views}
             </div>
             {image.tags && (
-              <span className="truncate max-w-24">#{image.tags}</span>
+              <span className="truncate max-w-24" title={`#${image.tags}`}>#{image.tags}</span>
             )}
           </div>
         </div>

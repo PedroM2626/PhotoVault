@@ -8,6 +8,7 @@ import { Plus } from 'lucide-react';
 export const AlbumsPage = () => {
   const [albums, setAlbums] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
   const [showCreateDialog, setShowCreateDialog] = React.useState(false);
 
   React.useEffect(() => {
@@ -16,13 +17,23 @@ export const AlbumsPage = () => {
 
   const loadAlbums = async () => {
     try {
-      const response = await fetch('/api/albums');
+      setLoading(true);
+      setError('');
+      
+      const response = await fetch('/api/albums', {
+        credentials: 'include',
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setAlbums(data.albums || []);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to load albums');
       }
     } catch (error) {
       console.error('Failed to load albums:', error);
+      setError('Failed to load albums');
     } finally {
       setLoading(false);
     }
@@ -46,7 +57,19 @@ export const AlbumsPage = () => {
         </div>
         
         {loading ? (
-          <div className="text-center py-12">Loading...</div>
+          <div className="text-center py-12">
+            <div className="text-gray-500">Loading albums...</div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-600">{error}</div>
+            <button 
+              onClick={loadAlbums}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
         ) : (
           <AlbumGrid albums={albums} onAlbumUpdated={loadAlbums} />
         )}

@@ -9,6 +9,7 @@ export const GalleryPage = () => {
   const { id } = useParams();
   const [images, setImages] = React.useState([]);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [sortBy, setSortBy] = React.useState('date_desc');
 
@@ -18,14 +19,24 @@ export const GalleryPage = () => {
 
   const loadImages = async () => {
     try {
+      setLoading(true);
+      setError('');
+      
       const url = id ? `/api/albums/${id}/images` : '/api/images';
-      const response = await fetch(`${url}?sort=${sortBy}`);
+      const response = await fetch(`${url}?sort=${sortBy}`, {
+        credentials: 'include',
+      });
+      
       if (response.ok) {
         const data = await response.json();
         setImages(data.images || []);
+      } else {
+        const errorData = await response.json();
+        setError(errorData.error || 'Failed to load images');
       }
     } catch (error) {
       console.error('Failed to load images:', error);
+      setError('Failed to load images');
     } finally {
       setLoading(false);
     }
@@ -51,7 +62,19 @@ export const GalleryPage = () => {
         </div>
         
         {loading ? (
-          <div className="text-center py-12">Loading...</div>
+          <div className="text-center py-12">
+            <div className="text-gray-500">Loading images...</div>
+          </div>
+        ) : error ? (
+          <div className="text-center py-12">
+            <div className="text-red-600">{error}</div>
+            <button 
+              onClick={loadImages}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Try Again
+            </button>
+          </div>
         ) : (
           <ImageGrid images={filteredImages} />
         )}

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface PreviewImage {
   file: File;
@@ -12,12 +12,15 @@ interface PreviewImage {
   title: string;
   tags: string;
   album_id?: string;
+  uploaded?: boolean;
+  error?: string;
 }
 
 export const ImageUpload = () => {
   const [previews, setPreviews] = React.useState<PreviewImage[]>([]);
   const [albums, setAlbums] = React.useState([]);
   const [uploading, setUploading] = React.useState(false);
+  const [uploadComplete, setUploadComplete] = React.useState(false);
 
   React.useEffect(() => {
     loadAlbums();
@@ -25,7 +28,9 @@ export const ImageUpload = () => {
 
   const loadAlbums = async () => {
     try {
-      const response = await fetch('/api/albums');
+      const response = await fetch('/api/albums', {
+        credentials: 'include',
+      });
       if (response.ok) {
         const data = await response.json();
         setAlbums(data.albums || []);
@@ -48,6 +53,8 @@ export const ImageUpload = () => {
           tags: '',
         };
         setPreviews(prev => [...prev, preview]);
+      } else {
+        alert(`File "${file.name}" is either not an image or exceeds 5MB limit.`);
       }
     });
   };
@@ -70,8 +77,12 @@ export const ImageUpload = () => {
     if (previews.length === 0) return;
 
     setUploading(true);
+    setUploadComplete(false);
     
-    for (const preview of previews) {
+    const updatedPreviews = [...previews];
+    
+    for (let i = 0; i < previews.length; i++) {
+      const preview = previews[i];
       const formData = new FormData();
       formData.append('image', preview.file);
       formData.append('title', preview.title);
@@ -81,17 +92,46 @@ export const ImageUpload = () => {
       }
 
       try {
-        await fetch('/api/images/upload', {
+        const response = await fetch('/api/images/upload', {
           method: 'POST',
+          credentials: 'include',
           body: formData,
         });
+        
+        if (response.ok) {
+          updatedPreviews[i] = { ...updatedPreviews[i], uploaded: true };
+        } else {
+          const errorData = await response.json();
+          updatedPreviews[i] = { 
+            ...updatedPreviews[i], 
+            error: errorData.error || 'Upload failed' 
+          };
+        }
       } catch (error) {
         console.error('Upload failed:', error);
+        updatedPreviews[i] = { 
+          ...updatedPreviews[i], 
+          error: 'Network error during upload' 
+        };
       }
+      
+      setPreviews([...updatedPreviews]);
     }
 
-    setPreviews([]);
     setUploading(false);
+    setUploadComplete(true);
+    
+    // Auto-clear successful uploads after 3 seconds
+    setTimeout(() => {
+      setPreviews(prev => prev.filter(p => !p.uploaded));
+      setUploadComplete(false);
+    }, 3000);
+  };
+
+  const clearAll = () => {
+    previews.forEach(preview => URL.revokeObjectURL(preview.url));
+    setPreviews([]);
+    setUploadComplete(false);
   };
 
   return (
@@ -113,8 +153,9 @@ export const ImageUpload = () => {
               onChange={handleFileSelect}
               className="hidden"
               id="file-upload"
+              disabled={uploading}
             />
-            <Button asChild>
+            <Button asChild disabled={uploading}>
               <label htmlFor="file-upload" className="cursor-pointer">
                 Choose Files
               </label>
@@ -129,17 +170,36 @@ export const ImageUpload = () => {
       {previews.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Image Previews</CardTitle>
+            <div className="flex justify-between items-center">
+              <CardTitle>Image Previews</CardTitle>
+              {!uploading && (
+                <Button variant="outline" onClick={clearAll}>
+                  Clear All
+                </Button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
               {previews.map((preview, index) => (
                 <div key={index} className="flex gap-4 p-4 border rounded-lg">
-                  <img
-                    src={preview.url}
-                    alt="Preview"
-                    className="w-24 h-24 object-cover rounded"
-                  />
+                  <div className="relative">
+                    <img
+                      src={preview.url}
+                      alt="Preview"
+                      className="w-24 h-24 object-cover rounded"
+                    />
+                    {preview.uploaded && (
+                      <div className="absolute -top-2 -right-2 bg-green-500 rounded-full p-1">
+                        <CheckCircle className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                    {preview.error && (
+                      <div className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1">
+                        <AlertCircle className="w-4 h-4 text-white" />
+                      </div>
+                    )}
+                  </div>
                   <div className="flex-1 space-y-4">
                     <div>
                       <Label htmlFor={`title-${index}`}>Title</Label>
@@ -147,6 +207,7 @@ export const ImageUpload = () => {
                         id={`title-${index}`}
                         value={preview.title}
                         onChange={(e) => updatePreview(index, 'title', e.target.value)}
+                        disabled={uploading || preview.uploaded}
                       />
                     </div>
                     <div>
@@ -156,11 +217,15 @@ export const ImageUpload = () => {
                         value={preview.tags}
                         onChange={(e) => updatePreview(index, 'tags', e.target.value)}
                         placeholder="nature, landscape, vacation"
+                        disabled={uploading || preview.uploaded}
                       />
                     </div>
                     <div>
                       <Label htmlFor={`album-${index}`}>Album</Label>
-                      <Select onValueChange={(value) => updatePreview(index, 'album_id', value)}>
+                      <Select 
+                        onValueChange={(value) => updatePreview(index, 'album_id', value)}
+                        disabled={uploading || preview.uploaded}
+                      >
                         <SelectTrigger>
                           <SelectValue placeholder="Select album (optional)" />
                         </SelectTrigger>
@@ -173,20 +238,31 @@ export const ImageUpload = () => {
                         </SelectContent>
                       </Select>
                     </div>
+                    {preview.error && (
+                      <div className="text-red-600 text-sm">{preview.error}</div>
+                    )}
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removePreview(index)}
-                  >
-                    <X className="w-4 h-4" />
-                  </Button>
+                  {!uploading && !preview.uploaded && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => removePreview(index)}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               ))}
             </div>
             <div className="mt-6">
-              <Button onClick={handleUpload} disabled={uploading} className="w-full">
-                {uploading ? 'Uploading...' : `Upload ${previews.length} Image${previews.length > 1 ? 's' : ''}`}
+              <Button 
+                onClick={handleUpload} 
+                disabled={uploading || uploadComplete} 
+                className="w-full"
+              >
+                {uploading ? 'Uploading...' : 
+                 uploadComplete ? 'Upload Complete!' : 
+                 `Upload ${previews.length} Image${previews.length > 1 ? 's' : ''}`}
               </Button>
             </div>
           </CardContent>

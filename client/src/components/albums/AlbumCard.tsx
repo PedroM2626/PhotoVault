@@ -19,16 +19,27 @@ interface AlbumCardProps {
 }
 
 export const AlbumCard = ({ album, onUpdated }: AlbumCardProps) => {
-  const toggleVisibility = async () => {
+  const [isToggling, setIsToggling] = React.useState(false);
+
+  const toggleVisibility = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isToggling) return;
+    
+    setIsToggling(true);
     try {
       const response = await fetch(`/api/albums/${album.id}/visibility`, {
         method: 'POST',
+        credentials: 'include',
       });
       if (response.ok) {
         onUpdated();
       }
     } catch (error) {
       console.error('Failed to toggle album visibility:', error);
+    } finally {
+      setIsToggling(false);
     }
   };
 
@@ -52,10 +63,9 @@ export const AlbumCard = ({ album, onUpdated }: AlbumCardProps) => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={(e) => {
-                  e.preventDefault();
-                  toggleVisibility();
-                }}
+                onClick={toggleVisibility}
+                disabled={isToggling}
+                className="bg-white/90 hover:bg-white"
               >
                 {album.is_public ? <Globe className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
               </Button>
@@ -64,7 +74,9 @@ export const AlbumCard = ({ album, onUpdated }: AlbumCardProps) => {
         </Link>
         <div className="p-4">
           <h3 className="font-semibold text-lg truncate">{album.name}</h3>
-          <p className="text-gray-600 text-sm mt-1 line-clamp-2">{album.description}</p>
+          {album.description && (
+            <p className="text-gray-600 text-sm mt-1 line-clamp-2">{album.description}</p>
+          )}
           <div className="flex items-center justify-between mt-3">
             <span className="text-sm text-gray-500">
               {album.image_count} image{album.image_count !== 1 ? 's' : ''}

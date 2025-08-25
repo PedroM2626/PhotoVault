@@ -6,52 +6,7 @@ export const vitePort = 3000;
 
 export default defineConfig(({ mode }) => {
   return {
-    plugins: [
-      react(),
-      // Custom plugin to handle source map requests
-      {
-        name: 'handle-source-map-requests',
-        apply: 'serve',
-        configureServer(server) {
-          server.middlewares.use((req, res, next) => {
-            // Check if the request is for a source map file
-            if (req.url && req.url.endsWith('.map')) {
-              // Rewrite the URL to remove the query string that's causing the issue
-              const cleanUrl = req.url.split('?')[0];
-              req.url = cleanUrl;
-            }
-            next();
-          });
-        },
-      },
-      // Custom plugin to add CORS headers
-      {
-        name: 'add-cors-headers',
-        apply: 'serve',
-        configureServer(server) {
-          server.middlewares.use((req, res, next) => {
-            // Add CORS headers to all responses
-            res.setHeader('Access-Control-Allow-Origin', '*');
-            res.setHeader(
-              'Access-Control-Allow-Methods',
-              'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-            );
-            res.setHeader(
-              'Access-Control-Allow-Headers',
-              'Content-Type, Authorization, X-Requested-With',
-            );
-
-            // Handle OPTIONS requests
-            if (req.method === 'OPTIONS') {
-              res.statusCode = 204;
-              return res.end();
-            }
-
-            next();
-          });
-        },
-      },
-    ].filter(Boolean),
+    plugins: [react()],
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './client/src'),
@@ -59,7 +14,7 @@ export default defineConfig(({ mode }) => {
     },
     root: path.join(process.cwd(), 'client'),
     build: {
-      outDir: path.join(process.cwd(), 'dist/public'),
+      outDir: path.join(process.cwd(), 'server/public'),
       emptyOutDir: true,
     },
     clearScreen: false,
@@ -70,19 +25,21 @@ export default defineConfig(({ mode }) => {
       host: true,
       port: vitePort,
       allowedHosts: true,
-      cors: true, // Enable CORS in the dev server
+      cors: true,
       proxy: {
         '/api/': {
           target: 'http://localhost:3001',
           changeOrigin: true,
         },
+        '/uploads/': {
+          target: 'http://localhost:3001',
+          changeOrigin: true,
+        },
       },
     },
-    // Enable source maps for development
     css: {
       devSourcemap: true,
     },
-    // Ensure source maps are properly generated
     esbuild: {
       sourcemap: true,
     },

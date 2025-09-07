@@ -5,6 +5,8 @@ import path from 'path';
 export const vitePort = 3000;
 
 export default defineConfig(({ mode }) => {
+  const apiTarget = process.env.VITE_API_URL || 'http://localhost:3001';
+
   return {
     plugins: [react()],
     resolve: {
@@ -28,11 +30,11 @@ export default defineConfig(({ mode }) => {
       cors: true,
       proxy: {
         '/api/': {
-          target: 'http://localhost:3001',
+          target: apiTarget,
           changeOrigin: true,
         },
         '/uploads/': {
-          target: 'http://localhost:3001',
+          target: apiTarget,
           changeOrigin: true,
         },
       },
